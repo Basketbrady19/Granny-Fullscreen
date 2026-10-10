@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Granny</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/TemplateData/style.css">
+<style>
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+#unity-container {
+  position: fixed;
+  inset: 0;
+}
+#unity-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#fullscreen-button {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  padding: 10px 14px;
+  background: #222;
+  color: white;
+  border: 1px solid #777;
+  border-radius: 7px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<button id="fullscreen-button">⛶ Full Screen</button>
+<div id="unity-container">
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+</div>
+<script>
+const canvas = document.getElementById("unity-canvas");
+
+document.getElementById("fullscreen-button").addEventListener("click", async () => {
+  try {
+    await document.getElementById("unity-container").requestFullscreen();
+  } catch (e) {
+    console.warn("Fullscreen unavailable:", e);
+  }
+});
+
+canvas.addEventListener("click", () => {
+  if (document.pointerLockElement !== canvas) {
+    canvas.requestPointerLock();
+  }
+});
+
+const dataParts = [
+  "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part1.data",
+  "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part2.data"
+];
+const wasmParts = [
+  "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part1.wasm",
+  "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part2.wasm"
+];
+const build = "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build";
+
+async function mergeParts(urls) {
+  const buffers = await Promise.all(urls.map(async url => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to load " + url);
+    return response.arrayBuffer();
+  }));
+  const total = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const buffer of buffers) {
+    merged.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  }
+  return merged;
+}
+
+async function startGame() {
+  const [data, wasm] = await Promise.all([
+    mergeParts(dataParts),
+    mergeParts(wasmParts)
+  ]);
+
+  const config = {
+    dataUrl: URL.createObjectURL(
+      new Blob([data], {type: "application/octet-stream"})
+    ),
+    codeUrl: URL.createObjectURL(
+      new Blob([wasm], {type: "application/octet-stream"})
+    ),
+    frameworkUrl: build + "/Granny.framework.js",
+    streamingAssetsUrl:
+      "https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/StreamingAssets",
+    companyName: "Granny",
+    productName: "Granny",
+    productVersion: "1.0"
+  };
+
+  const script = document.createElement("script");
+  script.src = build + "/Granny.loader.js";
+  script.onload = () => {
+    createUnityInstance(canvas, config, progress => {
+      console.log("Loading:", Math.round(progress * 100) + "%");
+    }).catch(error => {
+      console.error(error);
+      alert("The game failed to load. Check the browser console.");
+    });
+  };
+  script.onerror = () => alert("Could not load the Unity game loader.");
+  document.body.appendChild(script);
+}
+
+startGame().catch(error => {
+  console.error(error);
+  alert("Could not download the game files. They may be unavailable or blocked.");
+});
+</script>
+</body>
+</html>
