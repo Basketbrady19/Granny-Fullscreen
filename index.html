@@ -1,330 +1,162 @@
-<html lang="en-us"><head></head><body><module>
-<moduleprefs title="Resources">
-<content type="html"><!--[CDATA[
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Granny</title>
 
-<!DOCTYPE html-->
+<link rel="stylesheet"
+ href="https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/TemplateData/style.css">
 
+<script src="https://sdk.games.s3.yandex.net/sdk.js"></script>
 
-    <title>Granny Original</title>
-    <meta charset="utf-8">
-    <meta name="robots" content="noindex, nofollow">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style>
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/TemplateData/style.css">
-    <script src="https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/sdk.js"></script>
+#unity-container {
+  position: fixed;
+  inset: 0;
+}
 
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: black;
-        }
+#unity-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
-        #unity-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            left: 0;
-            top: 0;
-        }
+#fullscreen-button {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  padding: 10px 14px;
+  background: #222;
+  color: white;
+  border: 1px solid #777;
+  border-radius: 7px;
+  cursor: pointer;
+}
+</style>
+</head>
 
-        #unity-loading-bar {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 400px;
-            height: 20px;
-            background: rgba(0,0,0,0.5);
-            border: 2px solid #ffffff;
-            border-radius: 10px;
-            display: block;
-        }
-
-        #unity-progress-bar-empty {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #unity-progress-bar-full {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 0%;
-            height: 100%;
-            background: #4caf50;
-            border-radius: 8px;
-            transition: width 0.3s ease;
-        }
-
-        #unity-warning {
-            position: absolute;
-            left: 50%;
-            top: 5%;
-            transform: translate(-50%);
-            background: white;
-            padding: 10px;
-            display: none;
-            border-radius: 5px;
-        }
-    </style>
-
-
-
+<body>
+<button id="fullscreen-button">⛶ Full Screen</button>
 
 <div id="unity-container">
-    <canvas id="unity-canvas" style="position: absolute; width: 100%; height: 100%; cursor: default;" width="732" height="533"></canvas>
-
-    <div id="unity-loading-bar" style="display: none;">
-        <div id="unity-progress-bar-empty">
-            <div id="unity-progress-bar-full" style="width: 100%;"></div>
-        </div>
-    </div>
-
-    <div id="unity-warning"></div>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
 </div>
 
 <script>
+const canvas = document.getElementById("unity-canvas");
+const container = document.getElementById("unity-container");
 
-async function mergeUnityWebFiles(partUrls) {
-
-    const parts = [];
-    let totalLength = 0;
-
-    for (let i = 0; i < partUrls.length; i++) {
-
-        const url = partUrls[i];
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Failed to load part: ${url}`);
-        }
-
-        const buffer = await response.arrayBuffer();
-        const u8 = new Uint8Array(buffer);
-
-        parts.push(u8);
-
-        totalLength += u8.byteLength;
-
-        const progress = ((i + 1) / partUrls.length) * 100;
-
-        document.querySelector("#unity-progress-bar-full").style.width = `${progress}%`;
-    }
-
-    const combined = new Uint8Array(totalLength);
-
-    let offset = 0;
-
-    for (let i = 0; i < parts.length; i++) {
-
-        combined.set(parts[i], offset);
-
-        offset += parts[i].byteLength;
-
-        parts[i] = null;
-    }
-
-    return combined;
-}
-
-async function clearCorruptedSave() {
-
+document.getElementById("fullscreen-button")
+  .addEventListener("click", async () => {
     try {
-
-        if (!indexedDB.databases) return;
-
-        const v = localStorage.getItem('granny_save_v');
-
-        if (v === '1') return;
-
-        const dbs = await indexedDB.databases();
-
-        for (const db of dbs) {
-
-            if (db.name && (db.name.includes('Granny') || db.name === '/idbfs')) {
-                indexedDB.deleteDatabase(db.name);
-            }
-        }
-
-        localStorage.setItem('granny_save_v', '1');
-
-    } catch (e) {
-
-        console.warn('IDB cleanup skipped:', e);
-    }
-}
-
-var container = document.querySelector("#unity-container");
-var canvas = document.querySelector("#unity-canvas");
-var loadingBar = document.querySelector("#unity-loading-bar");
-var progressBarFull = document.querySelector("#unity-progress-bar-full");
-var warningBanner = document.querySelector("#unity-warning");
-
-function unityShowBanner(msg, type) {
-
-    function updateBannerVisibility() {
-        warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-    }
-
-    var div = document.createElement('div');
-
-    div.innerHTML = msg;
-
-    warningBanner.appendChild(div);
-
-    if (type == 'error') {
-
-        div.style = 'background:red;padding:10px;';
-
-    } else {
-
-        if (type == 'warning') {
-            div.style = 'background:yellow;padding:10px;';
-        }
-
-        setTimeout(function () {
-
-            warningBanner.removeChild(div);
-
-            updateBannerVisibility();
-
-        }, 5000);
-    }
-
-    updateBannerVisibility();
-}
-
-
-//////////////////////////////////////////////////////
-// DATA PART CDN LINKS
-//////////////////////////////////////////////////////
-
-var dataPartUrls = [
-    "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part1.data",
-    "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part2.data"
-];
-
-
-//////////////////////////////////////////////////////
-// WASM PART CDN LINKS
-//////////////////////////////////////////////////////
-
-var wasmPartUrls = [
-    "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part1.wasm",
-    "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part2.wasm"
-];
-
-
-//////////////////////////////////////////////////////
-// FRAMEWORK + LOADER CDN LINKS
-//////////////////////////////////////////////////////
-
-var wasmBuildUrl = "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build";
-var loaderUrl = "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny.loader.js";
-
-
-async function initializeGame() {
-
-    try {
-
-        await clearCorruptedSave();
-
-
-        //////////////////////////////////////////////////////
-        // DATA FILES -> @main
-        //////////////////////////////////////////////////////
-
-        const dataBuffer = await mergeUnityWebFiles(dataPartUrls);
-
-
-        //////////////////////////////////////////////////////
-        // WASM FILES -> @7945e90
-        //////////////////////////////////////////////////////
-
-        const wasmBuffer = await mergeUnityWebFiles(wasmPartUrls);
-
-
-        const dataBlobUrl = URL.createObjectURL(
-            new Blob([dataBuffer], {
-                type: "application/octet-stream"
-            })
-        );
-
-
-        const wasmBlobUrl = URL.createObjectURL(
-            new Blob([wasmBuffer], {
-                type: "application/octet-stream"
-            })
-        );
-
-
-        var config = {
-
-            dataUrl: dataBlobUrl,
-
-            frameworkUrl: wasmBuildUrl + "/Granny.framework.js",
-
-            codeUrl: wasmBlobUrl,
-
-            streamingAssetsUrl:
-                "https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/StreamingAssets",
-
-            companyName: "Anastasia Kazantseva",
-
-            productName: "Granny",
-
-            productVersion: "1.0",
-
-            showBanner: unityShowBanner,
-        };
-
-
-        var script = document.createElement("script");
-
-        script.src = loaderUrl;
-
-        script.onload = () => {
-
-    createUnityInstance(canvas, config, (progress) => {
-
-        progressBarFull.style.width = 100 * progress + "%";
-
-    }).then((unityInstance) => {
-
-        loadingBar.style.display = "none";
-
-     canvas.addEventListener("click", () => {
-    if (document.pointerLockElement !== canvas) {
-        canvas.requestPointerLock().catch((error) => {
-            console.log("Mouse lock blocked:", error);
-        });
-    }
-});
-    }).catch((message) => {
-
-        alert(message);
-    });
-};
-
-document.body.appendChild(script);
-
+      await container.requestFullscreen();
     } catch (error) {
-
-        console.error("Game initialization failed:", error);
+      console.warn("Fullscreen unavailable:", error);
     }
+  });
+
+const dataParts = [
+  "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part1.data",
+  "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part2.data"
+];
+
+const wasmParts = [
+  "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part1.wasm",
+  "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny_part2.wasm"
+];
+
+const build =
+  "https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build";
+
+async function mergeParts(urls) {
+  const responses = await Promise.all(
+    urls.map(async url => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to load " + url);
+      }
+      return response.arrayBuffer();
+    })
+  );
+
+  const total = responses.reduce(
+    (sum, buffer) => sum + buffer.byteLength, 0
+  );
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+
+  for (const buffer of responses) {
+    merged.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  }
+
+  return merged;
 }
 
-initializeGame();
+async function startGame() {
+  const [data, wasm] = await Promise.all([
+    mergeParts(dataParts),
+    mergeParts(wasmParts)
+  ]);
 
+  const config = {
+    dataUrl: URL.createObjectURL(
+      new Blob([data], { type: "application/octet-stream" })
+    ),
+    codeUrl: URL.createObjectURL(
+      new Blob([wasm], { type: "application/octet-stream" })
+    ),
+    frameworkUrl: build + "/Granny.framework.js",
+    streamingAssetsUrl:
+      "https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/StreamingAssets",
+    companyName: "Granny",
+    productName: "Granny",
+    productVersion: "1.0"
+  };
+
+  const loader = document.createElement("script");
+  loader.src = build + "/Granny.loader.js";
+
+  loader.onload = async () => {
+    try {
+      await createUnityInstance(
+        canvas,
+        config,
+        progress => {
+          console.log(
+            "Loading:", Math.round(progress * 100) + "%"
+          );
+        }
+      );
+      console.log("Granny loaded.");
+    } catch (error) {
+      console.error("Unity failed to start:", error);
+      alert("Granny failed to load. Check the Console.");
+    }
+  };
+
+  loader.onerror = () => {
+    alert("Could not load the Unity game loader.");
+  };
+
+  document.body.appendChild(loader);
+}
+
+startGame().catch(error => {
+  console.error("Game files failed to load:", error);
+  alert("Could not download Granny's game files.");
+});
 </script>
-
-   
-
-
-
-]]&gt;</content>
-</moduleprefs></module><script src="https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny.loader.js"></script><script src="blob:https://519255475-atari-embeds.googleusercontent.com/1f8ab193-c7ed-4558-8125-f4d6468601bb"></script></body></html>
+</body>
+</html>
