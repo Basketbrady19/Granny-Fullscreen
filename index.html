@@ -53,10 +53,11 @@ document.getElementById("fullscreen-button").addEventListener("click", async () 
   }
 });
 
-canvas.addEventListener("click", () => {
-  if (document.pointerLockElement !== canvas) {
-    canvas.requestPointerLock();
-  }
+canvas.addEventListener('click', () => {
+    // Only lock the mouse when the actual game is running
+    if (gameStarted) {
+        canvas.requestPointerLock();
+    }
 });
 
 const dataParts = [
