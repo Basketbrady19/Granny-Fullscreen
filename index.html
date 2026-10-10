@@ -129,7 +129,7 @@ async function mergeUnityWebFiles(partUrls) {
         const response = await fetch(url);
 
         if (!response.ok) {
-            throw new Error(Failed to load part: ${url});
+            throw new Error(`Failed to load part: ${url}`);
         }
 
         const buffer = await response.arrayBuffer();
@@ -141,7 +141,7 @@ async function mergeUnityWebFiles(partUrls) {
 
         const progress = ((i + 1) / partUrls.length) * 100;
 
-        document.querySelector("#unity-progress-bar-full").style.width = ${progress}%;
+        document.querySelector("#unity-progress-bar-full").style.width = `${progress}%`;
     }
 
     const combined = new Uint8Array(totalLength);
@@ -356,4 +356,4 @@ initializeGame();
 
 
 ]]&gt;</content>
-</moduleprefs></module><script src="https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny.loader.js"></script><script src="blob:https://519255475-atari-embeds.googleusercontent.com/1f8ab193-c7ed-4558-8125-f4d6468601bb"></script></body></html> paste this?
+</moduleprefs></module><script src="https://cdn.jsdelivr.net/gh/gru6nny/ohd@7945e90/Build/Granny.loader.js"></script><script src="blob:https://519255475-atari-embeds.googleusercontent.com/1f8ab193-c7ed-4558-8125-f4d6468601bb"></script></body></html>
