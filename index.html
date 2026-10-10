@@ -53,13 +53,6 @@ document.getElementById("fullscreen-button").addEventListener("click", async () 
   }
 });
 
-canvas.addEventListener('click', () => {
-    // Only lock the mouse when the actual game is running
-    if (gameStarted) {
-        canvas.requestPointerLock();
-    }
-});
-
 const dataParts = [
   "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part1.data",
   "https://cdn.jsdelivr.net/gh/gru6nny/datax@a77a8a6/Granny_part2.data"
